@@ -463,10 +463,6 @@ void display()
       glRotated(ph, 1.0, 0.0, 0.0);
       glRotated(th, 0.0, 1.0, 0.0);
       break;
-   case 2:
-      // Fixed perspective
-      // gluLookAt(3.0, 3.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
-      break;
    default:
       Fatal("Invalid mode %d\n", m);
    }
