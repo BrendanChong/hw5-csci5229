@@ -86,8 +86,8 @@ double asp = 16.0 / 9.0; // Aspect ratio
 int fov = 110;           // Field of view for perspective
 int m = 0;               // perspective mode switcher
 double dim = 5.0;        // Size of the world
-double ph = 20;          // Elevation of view angle
-double th = 0;           // Azimuth of view angle
+int ph = 20;             // Elevation of view angle
+int th = 0;              // Azimuth of view angle
 double Ex = 0.0;         // First person camera x position
 double Ey = 1.0;         // first person camera y position
 double Ez = -1.0;        // first person camera z position
@@ -199,40 +199,42 @@ void drawCylinder(Point p1, Point p2, double r)
       double y = r * Sin(degree);
 
       // Bottom vertex - compute global position
+      glNormal3d(Cos(degree), Sin(degree), 0.0); // Normal points outwards
       glVertex3d(x, y, 0.0);
-      glNormal3d(x, y, 0.0); // Normal points outwards
 
       // Top vertex - compute global position
+      glNormal3d(Cos(degree), Sin(degree), 0.0); // Normal points outwards
       glVertex3d(x, y, length);
-      glNormal3d(x, y, 0.0); // Normal points outwards
    }
    glEnd();
 
    // Top circle
    glBegin(GL_TRIANGLE_FAN);
    // Center vertex
+   glNormal3d(0.0, 0.0, 1.0); // Normal points forward
    glVertex3d(0.0, 0.0, length);
 
    for (int degree = 0; degree <= 360; degree += deltaDegree)
    {
       double x = r * Cos(degree);
       double y = r * Sin(degree);
+      glNormal3d(0.0, 0.0, 1.0); // Normal points forward
       glVertex3d(x, y, length);
-      glNormal3d(0.0, 0.0, 1.0); // Normal points up
    }
    glEnd();
 
    // Bottom circle
    glBegin(GL_TRIANGLE_FAN);
    // Center vertex
+   glNormal3d(0.0, 0.0, -1.0); // Normal points backward
    glVertex3d(0.0, 0.0, 0.0);
 
    for (int degree = 0; degree <= 360; degree += deltaDegree)
    {
       double x = r * Cos(degree);
       double y = r * Sin(degree);
+      glNormal3d(0.0, 0.0, -1.0); // Normal points backward
       glVertex3d(x, y, 0.0);
-      glNormal3d(0.0, 0.0, -1.0); // Normal points down
    }
    glEnd();
 
@@ -268,16 +270,16 @@ void drawTorus(Torus t)
          double x1 = (t.rMajor + t.rMinor * Cos(theta)) * Cos(phi);
          double y1 = (t.rMajor + t.rMinor * Cos(theta)) * Sin(phi);
          double z1 = t.rMinor * Sin(theta);
-         glVertex3d(x1, y1, z1);
          glNormal3d(Cos(theta) * Cos(phi), Cos(theta) * Sin(phi), Sin(theta));
+         glVertex3d(x1, y1, z1);
 
          double x2 = (t.rMajor + t.rMinor * Cos(theta + deltaDegree)) * Cos(phi + deltaDegree);
          double y2 = (t.rMajor + t.rMinor * Cos(theta + deltaDegree)) * Sin(phi + deltaDegree);
          double z2 = t.rMinor * Sin(theta + deltaDegree);
-         glVertex3d(x2, y2, z2);
          glNormal3d(Cos(theta + deltaDegree) * Cos(phi + deltaDegree),
                     Cos(theta + deltaDegree) * Sin(phi + deltaDegree),
                     Sin(theta + deltaDegree));
+         glVertex3d(x2, y2, z2);
       }
       glEnd();
    }
@@ -320,11 +322,11 @@ void drawEllipse(EllipseStruct e)
          double y2 = Sin(ph + deltaDegree);
          double z2 = Cos(th) * Cos(ph + deltaDegree);
 
-         glVertex3d(x1, y1, z1);
          glNormal3d(x1, y1, z1);
+         glVertex3d(x1, y1, z1);
 
-         glVertex3d(x2, y2, z2);
          glNormal3d(x2, y2, z2);
+         glVertex3d(x2, y2, z2);
       }
       glEnd();
    }
@@ -399,20 +401,29 @@ void drawBicycle(Point origin, Point direction, Point scale)
    glRotated(forward.psi, 1.0, 0.0, 0.0); // Rotate about X axis
    glScaled(scale.x, scale.y, scale.z);   // Scale to desired size
 
-   drawCylinder(seatPost, midHeadTube, r);          // Top tube
+   // Grey color
+   glColor3f(201 / 255.0, 201 / 255.0, 201 / 255.0);
+   drawCylinder(seatPost, seatTubeTop, r);         // Actual seat post
+   drawCylinder(rearAxleLeft, rearAxleRight, r);   // Rear axle
+   drawCylinder(frontAxleLeft, frontAxleRight, r); // Front axle
+
+   // Red color (for speed)
+   glColor3f(1.0, 0.0, 0.0);
    drawCylinder(headTubeBottom, headTubeTop, r);    // Head tube
-   drawCylinder(seatPost, seatTubeTop, r);          // Actual seat post
-   drawCylinder(seatPost, seatTubeBottom, r);       // Seat tube
+   drawCylinder(seatPost, midHeadTube, r);          // Top tube
    drawCylinder(seatTubeBottom, headTubeBottom, r); // Down tube? No name on the diagram
    drawCylinder(seatPost, rearAxleRight, r);        // Chain stay right
+   drawCylinder(seatPost, seatTubeBottom, r);       // Seat tube
    drawCylinder(seatTubeBottom, rearAxleRight, r);  // Seat stay right
    drawCylinder(seatPost, rearAxleLeft, r);         // Chain stay left
    drawCylinder(seatTubeBottom, rearAxleLeft, r);   // Seat stay left
-   drawCylinder(rearAxleLeft, rearAxleRight, r);    // Rear axle
-   drawCylinder(frontAxleLeft, frontAxleRight, r);  // Front axle
+
    drawCylinder(headTubeBottom, frontAxleRight, r); // Right fork
    drawCylinder(headTubeBottom, frontAxleLeft, r);  // Left fork
-   drawCylinder(handlebarLeft, handlebarRight, r);  // Handlebars
+
+   // Darker grey
+   glColor3f(100 / 255.0, 100 / 255.0, 100 / 255.0);
+   drawCylinder(handlebarLeft, handlebarRight, r); // Handlebars
 
    // Draw wheels
    Torus frontWheel = {(Point){frontAxle.x, frontAxle.y, frontAxle.z}, (Point){1.0, 0.0, 0.0}, wheelRadius, 0.0254};
@@ -429,6 +440,9 @@ void drawBicycle(Point origin, Point direction, Point scale)
 
 void display()
 {
+   // Set background color to light blue
+   glClearColor(26.0 / 255.0, 163.0 / 255.0, 198.0 / 255.0, 1.0);
+
    // Clear the image
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -469,7 +483,7 @@ void display()
       float Specular[] = {0.01 * specular, 0.01 * specular, 0.01 * specular, 1.0};
       //  Light position
       float Position[] = {distance * Cos(zh), ylight, distance * Sin(zh), 1.0};
-      //  Draw light position as ball (still no lighting here)
+      //  Draw light position as sphere (still no lighting here)
       glColor3f(1, 1, 1);
       EllipseStruct lightSphere = {(Point){Position[0], Position[1], Position[2]}, (Point){0.0, 1.0, 0.0}, 0.1, 0.1};
       drawEllipse(lightSphere);
@@ -499,10 +513,10 @@ void display()
    drawBicycle((Point){0.0, 0.0, 0.0}, (Point){0.0, 0.0, 1.0}, (Point){1.0, 1.0, 1.0});
 
    glDisable(GL_LIGHTING); // No lighting for axes and text
+   glColor3f(1, 1, 1);     // white
    if (axes)
    {
       //  Draw axes in white
-      glColor3f(1, 1, 1);
       glBegin(GL_LINES);
       glVertex3d(0, 0, 0);
       glVertex3d(1, 0, 0);
@@ -520,19 +534,17 @@ void display()
       Print("Z");
    }
 
-   // Print the mode
+   //  Display parameters
+
    glWindowPos2i(5, 5);
-   switch (m)
+   Print("Angle=%d,%d  Dim=%.1f FOV=%d Projection=%s Light=%s",
+         th, ph, dim, fov, m == 1 ? "Perspective" : "Orthogonal", light ? "On" : "Off");
+   if (light)
    {
-   case 0:
-      Print("Mode: Orthogonal");
-      break;
-   case 1:
-      Print("Mode: Perspective");
-      break;
-   case 2:
-      Print("Mode: Fixed Perspective");
-      break;
+      glWindowPos2i(5, 45);
+      Print("Model=%s LocalViewer=%s Distance=%d Elevation=%.1f", smooth ? "Smooth" : "Flat", local ? "On" : "Off", distance, ylight);
+      glWindowPos2i(5, 25);
+      Print("Ambient=%d  Diffuse=%d Specular=%d Emission=%d Shininess=%.0f", ambient, diffuse, specular, emission, shiny);
    }
 
    // Error check
@@ -576,7 +588,7 @@ void key(unsigned char ch, int x, int y)
    }
    else if (ch == 'm' || ch == 'M')
    {
-      m = (m + 1) % 3;
+      m = 1 - m;
    }
    else if (ch == 'l' || ch == 'L')
    {
@@ -643,7 +655,7 @@ void idle()
    zh = fmod(zh + 1.0, 360.0);
 
    // Oscillate the light height
-   ylight = Sin(zh);
+   ylight = 2.0 * Sin(4 * 360.0 * zh);
 
    glutPostRedisplay();
 }
@@ -656,7 +668,7 @@ int main(int argc, char *argv[])
    //  Request double buffered true color window without Z-buffer
    glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
    //  Create window
-   glutCreateWindow("Brendan Chong - Bicycle");
+   glutCreateWindow("Brendan Chong - Bicycle with lighting");
 #ifdef USEGLEW
    //  Initialize GLEW
    if (glewInit() != GLEW_OK)
