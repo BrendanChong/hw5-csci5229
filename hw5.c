@@ -1,10 +1,7 @@
 /*
  *  Lorenz Attractor Visualization
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <math.h>
+#include "CSCIx229.h"
 #ifdef USEGLEW
 #include <GL/glew.h>
 #endif
@@ -60,60 +57,59 @@ typedef struct Cylinder
    double h;    // Height of cylinder
 } Cylinder;
 
-typedef struct Torus{
-   Point center; // Center position of torus
-   Point axis;  // Axis vector of torus
+typedef struct Torus
+{
+   Point center;  // Center position of torus
+   Point axis;    // Axis vector of torus
    double rMajor; // Major radius (distance from center to tube center)
    double rMinor; // Minor radius (radius of the tube)
 } Torus;
 
-typedef struct EllipseStruct{
-   Point center; // Center position of ellipse
-   Point axis;  // Axis vector of ellipse
+typedef struct EllipseStruct
+{
+   Point center;  // Center position of ellipse
+   Point axis;    // Axis vector of ellipse
    double rMajor; // Major radius
    double rMinor; // Minor radius
 } EllipseStruct;
-
-// Cos and Sin in degrees
-double Cos(double theta)
-{
-   return cos(theta * 3.1415926535 / 180.0);
-}
-
-double Sin(double theta)
-{
-   return sin(theta * 3.1415926535 / 180.0);
-}
 
 double Tan(double theta)
 {
    return tan(theta * 3.1415926535 / 180.0);
 }
 
-
 //-----------------------------------------------------------
 // Global variables
 //-----------------------------------------------------------
 
-Color color = {1.0, 1.0, 1.0}; // Default color white
+double asp = 16.0 / 9.0; // Aspect ratio
+int fov = 110;           // Field of view for perspective
+int m = 0;               // perspective mode switcher
+double dim = 5.0;        // Size of the world
+double ph = 20;          // Elevation of view angle
+double th = 0;           // Azimuth of view angle
+double Ex = 0.0;         // First person camera x position
+double Ey = 0.0;         // first person camera y position
+double Ez = 0.0;         // first person camera z position
 
-double asp = 1;   // Aspect ratio
-int fov = 110;     // Field of view for perspective
-int m = 0;        // perspective mode switcher
-double dim = 10.0; // Size of the world
-double off = -3.6; // Z offset for orthographic and perspective projections
-double ph = 20;  // Elevation of view angle
-double th = 45;   // Azimuth of view angle
-double Ex = 0.0; // First person camera x position
-double Ey = 0.0; // first person camera y position
-double Ez = 0.0; // first person camera z position
-double dx = 0.0; // first person view direction x component
-double dy = 0.0; // first person view direction y component
-double dz = 1.0; // first person view direction z component
+// Flags
+int axes = 1;  // Display axes
+int light = 1; // Lighting
 
-// Mouse control variables
-int mouseX = 0, mouseY = 0;  // Current mouse position
-int mouseCaptured = 0;       // Whether mouse is captured for camera control
+// Light values
+int one = 1;       // Unit value
+int distance = 5;  // Light distance
+int inc = 10;      // Ball increment
+int smooth = 1;    // Smooth/Flat shading
+int local = 0;     // Local Viewer Model
+int emission = 0;  // Emission intensity (%)
+int ambient = 10;  // Ambient intensity (%)
+int diffuse = 50;  // Diffuse intensity (%)
+int specular = 0;  // Specular intensity (%)
+int shininess = 0; // Shininess (power of two)
+float shiny = 1;   // Shininess (value)
+int zh = 90;       // Light azimuth
+float ylight = 0;  // Elevation of light
 
 /*
  *  Check for OpenGL errors
@@ -167,71 +163,6 @@ Angle computeAngles(Point dir)
    return angles;
 }
 
-// Convert HSV color to RGB color
-// Github Copilot generated this function - I didn't write or verify it myself
-Color hsv2rgb( float h, float s, float v )
-{
-   Color rgb;
-   int i;
-   float f, p, q, t;
-
-   if( s == 0 ) { // Achromatic (grey)
-      rgb.r = rgb.g = rgb.b = v;
-      return rgb;
-   }
-
-   h /= 60;            // sector 0 to 5
-   i = floor( h );
-   f = h - i;          // factorial part of h
-   p = v * ( 1 - s );
-   q = v * ( 1 - s * f );
-   t = v * ( 1 - s * ( 1 - f ) );
-
-   switch( i ) {
-      case 0:
-         rgb.r = v;
-         rgb.g = t;
-         rgb.b = p;
-         break;
-      case 1:
-         rgb.r = q;
-         rgb.g = v;
-         rgb.b = p;
-         break;
-      case 2:
-         rgb.r = p;
-         rgb.g = v;
-         rgb.b = t;
-         break;
-      case 3:
-         rgb.r = p;
-         rgb.g = q;
-         rgb.b = v;
-         break;
-      case 4:
-         rgb.r = t;
-         rgb.g = p;
-         rgb.b = v;
-         break;
-      default:
-         rgb.r = v;
-         rgb.g = p;
-         rgb.b = q;
-         break;
-   }
-   return rgb; 
-}
-
-// Helper function to compute color based on global distance from origin
-Color computeDistanceColor(double x, double y, double z)
-{
-   double distance = sqrt(x*x + y*y + z*z);
-   // Scale distance to hue range (0-360 degrees)
-   // Adjust the scaling factor as needed for your scene
-   double hue = fmod(distance * 500.0, 360.0);  // Scale and wrap around
-   return hsv2rgb(hue, 0.8, 1.0);  // High saturation, full brightness
-}
-
 // Lets you specify the center of the two end points of the cylinder and draws it with the associated radius
 // Enhanced version with global coordinate coloring
 void drawCylinder(Point p1, Point p2, double r)
@@ -259,80 +190,57 @@ void drawCylinder(Point p1, Point p2, double r)
    glRotated(angles.ph, 0.0, 1.0, 0.0);  // Rotate about Y axis
    glRotated(angles.psi, 1.0, 0.0, 0.0); // Rotate about X axis
 
-   // Body of the cylinder with global coordinate coloring
+   // Body of the cylinder
    const int deltaDegree = 15; // degrees per segment
    glBegin(GL_QUAD_STRIP);
    for (int degree = 0; degree <= 360; degree += deltaDegree)
    {
       double x = r * Cos(degree);
       double y = r * Sin(degree);
-      
+
       // Bottom vertex - compute global position
-      double globalX1 = p1.x + x * Cos(angles.th) - y * Sin(angles.th);
-      double globalY1 = p1.y + x * Sin(angles.th) + y * Cos(angles.th);
-      double globalZ1 = p1.z;
-      Color color1 = computeDistanceColor(globalX1, globalY1, globalZ1);
-      glColor3f(color1.r, color1.g, color1.b);
       glVertex3d(x, y, 0.0);
-      
-      // Top vertex - compute global position  
-      double globalX2 = p2.x + x * Cos(angles.th) - y * Sin(angles.th);
-      double globalY2 = p2.y + x * Sin(angles.th) + y * Cos(angles.th);
-      double globalZ2 = p2.z;
-      Color color2 = computeDistanceColor(globalX2, globalY2, globalZ2);
-      glColor3f(color2.r, color2.g, color2.b);
+      glNormal3d(x, y, 0.0); // Normal points outwards
+
+      // Top vertex - compute global position
       glVertex3d(x, y, length);
+      glNormal3d(x, y, 0.0); // Normal points outwards
    }
    glEnd();
 
    // Top circle
    glBegin(GL_TRIANGLE_FAN);
    // Center vertex
-   Color centerColor2 = computeDistanceColor(p2.x, p2.y, p2.z);
-   glColor3f(centerColor2.r, centerColor2.g, centerColor2.b);
    glVertex3d(0.0, 0.0, length);
-   
+
    for (int degree = 0; degree <= 360; degree += deltaDegree)
    {
       double x = r * Cos(degree);
       double y = r * Sin(degree);
-      double globalX = p2.x + x * Cos(angles.th) - y * Sin(angles.th);
-      double globalY = p2.y + x * Sin(angles.th) + y * Cos(angles.th);
-      double globalZ = p2.z;
-      Color color = computeDistanceColor(globalX, globalY, globalZ);
-      glColor3f(color.r, color.g, color.b);
       glVertex3d(x, y, length);
+      glNormal3d(0.0, 0.0, 1.0); // Normal points up
    }
    glEnd();
 
    // Bottom circle
    glBegin(GL_TRIANGLE_FAN);
    // Center vertex
-   Color centerColor1 = computeDistanceColor(p1.x, p1.y, p1.z);
-   glColor3f(centerColor1.r, centerColor1.g, centerColor1.b);
    glVertex3d(0.0, 0.0, 0.0);
-   
+
    for (int degree = 0; degree <= 360; degree += deltaDegree)
    {
       double x = r * Cos(degree);
       double y = r * Sin(degree);
-      double globalX = p1.x + x * Cos(angles.th) - y * Sin(angles.th);
-      double globalY = p1.y + x * Sin(angles.th) + y * Cos(angles.th);
-      double globalZ = p1.z;
-      Color color = computeDistanceColor(globalX, globalY, globalZ);
-      glColor3f(color.r, color.g, color.b);
       glVertex3d(x, y, 0.0);
+      glNormal3d(0.0, 0.0, -1.0); // Normal points down
    }
    glEnd();
-
-   // Restore color to white
-   glColor3f(1.0, 1.0, 1.0);
 
    // Restore transformation matrix
    glPopMatrix();
 }
 
-void drawTorus( Torus t )
+void drawTorus(Torus t)
 {
    // Save current transformation matrix
    glPushMatrix();
@@ -348,44 +256,28 @@ void drawTorus( Torus t )
    glRotated(angles.ph, 0.0, 1.0, 0.0);  // Rotate about Y axis
    glRotated(angles.psi, 1.0, 0.0, 0.0); // Rotate about X axis
 
-   // Color based on global position of torus center
-   Color torusColor = computeDistanceColor(t.center.x, t.center.y, t.center.z);
-   glColor3f(torusColor.r, torusColor.g, torusColor.b);
-
-   // Draw the torus using GLUT function
-   // glutSolidTorus(t.rMinor, t.rMajor, 30, 30); // TODO WRITE MY OWN
+   // Draw torus using quad strips
    double deltaDegree = 15; // degrees per segment
-   for( double theta = 0; theta <= 360; theta += deltaDegree )
+   for (double theta = 0; theta <= 360; theta += deltaDegree)
    {
-   glBegin(GL_QUAD_STRIP);
+      glBegin(GL_QUAD_STRIP);
 
-      for (double phi = 0; phi <= 360; phi += deltaDegree )
+      for (double phi = 0; phi <= 360; phi += deltaDegree)
       {
          // Equation for torus
          double x1 = (t.rMajor + t.rMinor * Cos(theta)) * Cos(phi);
          double y1 = (t.rMajor + t.rMinor * Cos(theta)) * Sin(phi);
          double z1 = t.rMinor * Sin(theta);
-         double x2 = (t.rMajor + t.rMinor * Cos(theta+deltaDegree)) * Cos(phi + deltaDegree);
-         double y2 = (t.rMajor + t.rMinor * Cos(theta+deltaDegree)) * Sin(phi + deltaDegree);
-         double z2 = t.rMinor * Sin(theta+deltaDegree);
-
-         // Compute global position for coloring
-         double globalX1 = t.center.x + x1 * Cos(angles.th) - y1 * Sin(angles.th); 
-         double globalY1 = t.center.y + x1 * Sin(angles.th) + y1 * Cos(angles.th);
-         double globalZ1 = t.center.z + z1;
-
-         double globalX2 = t.center.x + x2 * Cos(angles.th) - y2 * Sin(angles.th);
-         double globalY2 = t.center.y + x2 * Sin(angles.th) + y2 * Cos(angles.th);
-         double globalZ2 = t.center.z + z2;
-
-         Color color1 = computeDistanceColor(globalX1, globalY1, globalZ1);
-         Color color2 = computeDistanceColor(globalX2, globalY2, globalZ2);
-
-         glColor3f(color1.r, color1.g, color1.b);
          glVertex3d(x1, y1, z1);
+         glNormal3d(Cos(theta) * Cos(phi), Cos(theta) * Sin(phi), Sin(theta));
 
-         glColor3f(color2.r, color2.g, color2.b);
+         double x2 = (t.rMajor + t.rMinor * Cos(theta + deltaDegree)) * Cos(phi + deltaDegree);
+         double y2 = (t.rMajor + t.rMinor * Cos(theta + deltaDegree)) * Sin(phi + deltaDegree);
+         double z2 = t.rMinor * Sin(theta + deltaDegree);
          glVertex3d(x2, y2, z2);
+         glNormal3d(Cos(theta + deltaDegree) * Cos(phi + deltaDegree),
+                    Cos(theta + deltaDegree) * Sin(phi + deltaDegree),
+                    Sin(theta + deltaDegree));
       }
       glEnd();
    }
@@ -394,9 +286,9 @@ void drawTorus( Torus t )
    glPopMatrix();
 }
 
-void drawEllipse( EllipseStruct e )
+void drawEllipse(EllipseStruct e)
 {
-   // Save current transformation matrix2
+   // Save current transformation matrix
    glPushMatrix();
 
    // Set the origin to be the center of the ellipse
@@ -409,44 +301,33 @@ void drawEllipse( EllipseStruct e )
    glRotated(angles.th, 0.0, 0.0, 1.0);  // Rotate about Z axis
    glRotated(angles.ph, 0.0, 1.0, 0.0);  // Rotate about Y axis
    glRotated(angles.psi, 1.0, 0.0, 0.0); // Rotate about X axis
-   
+
    // Scale by the major and minor axes
-   glScaled(e.rMinor, 1.0*e.rMajor, e.rMajor);
-   
+   glScaled(e.rMinor, 1.0 * e.rMajor, e.rMajor);
+
    //  Latitude bands
    double deltaDegree = 15; // degrees per segment
-   for (int ph=-90;ph<90;ph+=deltaDegree)
+   for (int ph = -90; ph < 90; ph += deltaDegree)
    {
       glBegin(GL_QUAD_STRIP);
-      for (int th=0;th<=360;th+=deltaDegree)
+      for (int th = 0; th <= 360; th += deltaDegree)
       {
-         double x1 = Sin(th)*Cos(ph);
+         double x1 = Sin(th) * Cos(ph);
          double y1 = Sin(ph);
-         double z1 = Cos(th)*Cos(ph);
-         double globalX1 = e.center.x + e.rMinor * x1 * Cos(angles.th) - e.rMinor * y1 * Sin(angles.th);
-         double globalY1 = e.center.y + e.rMinor * x1 * Sin(angles.th) + e.rMinor * y1 * Cos(angles.th);
-         double globalZ1 = e.center.z + e.rMajor * z1;
-         Color color1 = computeDistanceColor(globalX1, globalY1, globalZ1);
+         double z1 = Cos(th) * Cos(ph);
 
-         double x2 = Sin(th)*Cos(ph+deltaDegree);
-         double y2 = Sin(ph+deltaDegree);
-         double z2 = Cos(th)*Cos(ph+deltaDegree);
-         double globalX2 = e.center.x + e.rMinor * x2 * Cos(angles.th) - e.rMinor * y2 * Sin(angles.th);
-         double globalY2 = e.center.y + e.rMinor * x2 * Sin(angles.th) + e.rMinor * y2 * Cos(angles.th);
-         double globalZ2 = e.center.z + e.rMajor * z2;
-         Color color2 = computeDistanceColor(globalX2, globalY2, globalZ2);
+         double x2 = Sin(th) * Cos(ph + deltaDegree);
+         double y2 = Sin(ph + deltaDegree);
+         double z2 = Cos(th) * Cos(ph + deltaDegree);
 
-         glColor3f(color1.r, color1.g, color1.b);
          glVertex3d(x1, y1, z1);
+         glNormal3d(x1, y1, z1);
 
-         glColor3f(color2.r, color2.g, color2.b);
          glVertex3d(x2, y2, z2);
+         glNormal3d(x2, y2, z2);
       }
       glEnd();
    }
-
-   // Restore color to white
-   glColor3f(1.0, 1.0, 1.0);
 
    // Restore transformation matrix to whatever it was before we drew the ellipse
    glPopMatrix();
@@ -478,28 +359,28 @@ void drawBicycle(Point origin, Point direction, Point scale)
    // Build the bicycle geometry relative to (0,0,0), with seatpost at origin
    Point seatPost = {0.0, 0.0, 0.0};
    Point midHeadTube = {seatPost.x,
-                          seatPost.y + topTubeEff * Tan( 90.0 - headAngle),
-                          seatPost.z + topTubeEff};
+                        seatPost.y + topTubeEff * Tan(90.0 - headAngle),
+                        seatPost.z + topTubeEff};
 
    Point headTubeBottom = {midHeadTube.x,
-                        midHeadTube.y + headTubeLength * Cos(90.0 + headAngle),
-                        midHeadTube.z + headTubeLength * Sin(90.0 + headAngle)};
+                           midHeadTube.y + headTubeLength * Cos(90.0 + headAngle),
+                           midHeadTube.z + headTubeLength * Sin(90.0 + headAngle)};
 
    Point headTubeTop = {midHeadTube.x,
-   midHeadTube.y - headTubeTopLength * Cos(90.0 + headAngle),
-   midHeadTube.z - headTubeTopLength * Sin(90.0 + headAngle)};
+                        midHeadTube.y - headTubeTopLength * Cos(90.0 + headAngle),
+                        midHeadTube.z - headTubeTopLength * Sin(90.0 + headAngle)};
 
    Point seatTubeBottom = {seatPost.x,
                            seatPost.y + seatTubeCC * Cos(90.0 + seatAngle),
                            seatPost.z + seatTubeCC * Sin(90.0 + seatAngle)};
 
    Point seatTubeTop = {seatPost.x,
-   seatPost.y - seatTubeLength * Cos(90.0 + seatAngle),
-   seatPost.z - seatTubeLength * Sin(90.0 + seatAngle)};
+                        seatPost.y - seatTubeLength * Cos(90.0 + seatAngle),
+                        seatPost.z - seatTubeLength * Sin(90.0 + seatAngle)};
 
    Point rearAxle = {seatTubeBottom.x,
-                        seatTubeBottom.y - chainStayLength * Cos(104.0),
-                        seatTubeBottom.z - chainStayLength * Sin(104.0)};
+                     seatTubeBottom.y - chainStayLength * Cos(104.0),
+                     seatTubeBottom.z - chainStayLength * Sin(104.0)};
 
    Point frontAxle = {rearAxle.x, rearAxle.y, rearAxle.z + wheelBase};
    Point frontAxleLeft = {frontAxle.x - axleWidth / 2.0, frontAxle.y, frontAxle.z};
@@ -516,114 +397,142 @@ void drawBicycle(Point origin, Point direction, Point scale)
    glRotated(forward.th, 0.0, 0.0, 1.0);  // Rotate about Z axis
    glRotated(forward.ph, 0.0, 1.0, 0.0);  // Rotate about Y axis
    glRotated(forward.psi, 1.0, 0.0, 0.0); // Rotate about X axis
-   glScaled(scale.x, scale.y, scale.z);         // Scale to desired size 
+   glScaled(scale.x, scale.y, scale.z);   // Scale to desired size
 
-   drawCylinder(seatPost, midHeadTube, r);     // Top tube
-   drawCylinder(headTubeBottom, headTubeTop, r);  // Head tube
-   drawCylinder(seatPost, seatTubeTop, r);       // Actual seat post
-   drawCylinder(seatPost, seatTubeBottom, r);    // Seat tube
+   drawCylinder(seatPost, midHeadTube, r);          // Top tube
+   drawCylinder(headTubeBottom, headTubeTop, r);    // Head tube
+   drawCylinder(seatPost, seatTubeTop, r);          // Actual seat post
+   drawCylinder(seatPost, seatTubeBottom, r);       // Seat tube
    drawCylinder(seatTubeBottom, headTubeBottom, r); // Down tube? No name on the diagram
-   drawCylinder(seatPost, rearAxleRight, r);          // Chain stay right
-   drawCylinder(seatTubeBottom, rearAxleRight, r);       // Seat stay right
-   drawCylinder(seatPost, rearAxleLeft, r);          // Chain stay left
-   drawCylinder(seatTubeBottom, rearAxleLeft, r);       // Seat stay left
-   drawCylinder(rearAxleLeft, rearAxleRight, r);   // Rear axle
-   drawCylinder(frontAxleLeft, frontAxleRight, r); // Front axle
+   drawCylinder(seatPost, rearAxleRight, r);        // Chain stay right
+   drawCylinder(seatTubeBottom, rearAxleRight, r);  // Seat stay right
+   drawCylinder(seatPost, rearAxleLeft, r);         // Chain stay left
+   drawCylinder(seatTubeBottom, rearAxleLeft, r);   // Seat stay left
+   drawCylinder(rearAxleLeft, rearAxleRight, r);    // Rear axle
+   drawCylinder(frontAxleLeft, frontAxleRight, r);  // Front axle
    drawCylinder(headTubeBottom, frontAxleRight, r); // Right fork
-   drawCylinder(headTubeBottom, frontAxleLeft, r); // Left fork
-   drawCylinder(handlebarLeft, handlebarRight, r); // Handlebars
+   drawCylinder(headTubeBottom, frontAxleLeft, r);  // Left fork
+   drawCylinder(handlebarLeft, handlebarRight, r);  // Handlebars
 
    // Draw wheels
-   Torus frontWheel = { (Point){frontAxle.x, frontAxle.y, frontAxle.z}, (Point){1.0, 0.0, 0.0}, wheelRadius, 0.0254};
+   Torus frontWheel = {(Point){frontAxle.x, frontAxle.y, frontAxle.z}, (Point){1.0, 0.0, 0.0}, wheelRadius, 0.0254};
    drawTorus(frontWheel);
-   Torus rearWheel = { (Point){rearAxle.x, rearAxle.y, rearAxle.z}, (Point){1.0, 0.0, 0.0}, wheelRadius, 0.0254};
-   drawTorus(rearWheel);   
+   Torus rearWheel = {(Point){rearAxle.x, rearAxle.y, rearAxle.z}, (Point){1.0, 0.0, 0.0}, wheelRadius, 0.0254};
+   drawTorus(rearWheel);
 
    // Draw seat
-   EllipseStruct seat = { seatTubeTop, midHeadTube, 0.1, 0.05};
+   EllipseStruct seat = {seatTubeTop, midHeadTube, 0.1, 0.05};
    drawEllipse(seat);
 
    glPopMatrix();
 }
 
 void display()
-{  
+{
    // Clear the image
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
    // Reset transformations
    glLoadIdentity();
 
-   // Orthogonal projection
-   if( m == 0 )
+   // Set the eye position
+   switch (m)
    {
-      // Rotate down to give oblique angle
+   case 0:
+      // Orthogonal
       glRotated(ph, 1.0, 0.0, 0.0);
       glRotated(th, 0.0, 1.0, 0.0);
+      break;
+   case 1:
+      // Perspective
+      // gluLookAt(Ex, Ey, Ez, Ex + Cos(th) * Cos(ph), Ey + Sin(th) * Cos(ph), Ez + Sin(ph), 0.0, 0.0, 1.0);
+      break;
+   case 2:
+      // Fixed perspective
+      // gluLookAt(3.0, 3.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+      break;
+   default:
+      Fatal("Invalid mode %d\n", m);
    }
-   // Perspective projection
-   else if( m == 1 )
+
+   //  Flat or smooth shading
+   glShadeModel(smooth ? GL_SMOOTH : GL_FLAT);
+
+   //  Light switch
+   if (light)
    {
-      Ex = -2*dim*Sin(th)*Cos(ph);
-      Ey = +2*dim        *Sin(ph);
-      Ez = +2*dim*Cos(th)*Cos(ph);
-      gluLookAt(Ex,Ey,Ez , 0,0,0 , 0,Cos(ph),0);
+      //  Translate intensity to color vectors
+      float Ambient[] = {0.01 * ambient, 0.01 * ambient, 0.01 * ambient, 1.0};
+      float Diffuse[] = {0.01 * diffuse, 0.01 * diffuse, 0.01 * diffuse, 1.0};
+      float Specular[] = {0.01 * specular, 0.01 * specular, 0.01 * specular, 1.0};
+      //  Light position
+      float Position[] = {distance * Cos(zh), ylight, distance * Sin(zh), 1.0};
+      //  Draw light position as ball (still no lighting here)
+      glColor3f(1, 1, 1);
+      EllipseStruct lightSphere = {(Point){Position[0], Position[1], Position[2]}, (Point){0.0, 1.0, 0.0}, 0.1, 0.1};
+      drawEllipse(lightSphere);
+      //  OpenGL should normalize normal vectors
+      glEnable(GL_NORMALIZE);
+      //  Enable lighting
+      glEnable(GL_LIGHTING);
+      //  Location of viewer for specular calculations
+      // glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,local);
+      //  glColor sets ambient and diffuse color materials
+      glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+      glEnable(GL_COLOR_MATERIAL);
+      //  Enable light 0
+      glEnable(GL_LIGHT0);
+      //  Set ambient, diffuse, specular components and position of light 0
+      glLightfv(GL_LIGHT0, GL_AMBIENT, Ambient);
+      glLightfv(GL_LIGHT0, GL_DIFFUSE, Diffuse);
+      glLightfv(GL_LIGHT0, GL_SPECULAR, Specular);
+      glLightfv(GL_LIGHT0, GL_POSITION, Position);
    }
-   // First person
    else
+      glDisable(GL_LIGHTING);
+
+   // Set color to red for bike
+   glColor3f(1.0, 0.0, 0.0);
+
+   drawBicycle((Point){0.0, 0.0, 0.0}, (Point){0.0, 0.0, 1.0}, (Point){1.0, 1.0, 1.0});
+
+   glDisable(GL_LIGHTING); // No lighting for axes and text
+   if (axes)
    {
-      Ey = 0.1*dim;
-      dx = Cos(th);
-      dy = Sin(ph);
-      dz = Sin(th);
-
-      gluLookAt(Ex,Ey,Ez , Ex+dx,Ey+dy,Ez+dz , 0, 1, 0);
+      //  Draw axes in white
+      glColor3f(1, 1, 1);
+      glBegin(GL_LINES);
+      glVertex3d(0, 0, 0);
+      glVertex3d(1, 0, 0);
+      glVertex3d(0, 0, 0);
+      glVertex3d(0, 1, 0);
+      glVertex3d(0, 0, 0);
+      glVertex3d(0, 0, 1);
+      glEnd();
+      //  Label axes
+      glRasterPos3d(1, 0, 0);
+      Print("X");
+      glRasterPos3d(0, 1, 0);
+      Print("Y");
+      glRasterPos3d(0, 0, 1);
+      Print("Z");
    }
-   // Draw the "ground" as white plane at y=0
-   glColor3f(1.0, 1.0, 1.0);
-   glBegin(GL_QUADS);
-   glVertex3f(-dim, 0.0, -dim);
-   glVertex3f(+dim, 0.0, -dim);
-   glVertex3f(+dim, 0.0, +dim);
-   glVertex3f(-dim, 0.0, +dim);
-   glEnd();
 
-   drawBicycle((Point){0.0, 3.0, 0.1*dim}, (Point){0.0, 0.0, -1.0}, (Point){1.0, 1.0, 1.0});
-
-   drawBicycle((Point){0.4*dim*asp, 2.5, -0.8*dim}, (Point){1.0, 0.0, 1.0}, (Point){2.0, 2.0, 2.0});
-
-   drawBicycle((Point){0.0, 3.5, 0.75*dim}, (Point){1.0, 0.0, 0.0}, (Point){5.0, 5.0, 5.0});
-
-   drawBicycle((Point){-0.3*dim*asp, 1.2, 0.4*dim}, (Point){-0.8, 0.3, 1.0}, (Point){1.4, 1.4, 1.4});
-
-   drawBicycle((Point){-0.65*dim*asp, 2.0, -0.5*dim}, (Point){1.0, 1.0, 1.0}, (Point){1.3, 1.3, 1.3});
-
-   glColor3f(1.0, 0.0, 0.0 );
-   glWindowPos2i(5, 25);
-   Print("th = %.1f ph = %.1f", th, ph);
-   Print("Ex = %.1f Ey = %.1f Ez = %.1f", Ex, Ey, Ez);
-   Print("dx = %.2f dy = %.2f dz = %.2f", dx, dy, dz);
-   switch( m )
+   // Print the mode
+   glWindowPos2i(5, 5);
+   switch (m)
    {
-      case 0:
-         glWindowPos2i(5,5);
-         Print("Projection = Orthogonal");
-         glWindowPos2i(5, 45);
-         Print("Z offset = %.1f", off);
+   case 0:
+      Print("Mode: Orthogonal");
       break;
-      case 1:
-         glWindowPos2i(5,5);
-         Print("Projection = Perspective");
+   case 1:
+      Print("Mode: Perspective");
       break;
-      case 2:
-         glWindowPos2i(5,5);
-         Print("Projection = First person");
+   case 2:
+      Print("Mode: Fixed Perspective");
       break;
-      default:
-         Fatal("Unknown projection mode: %d", m);
    }
-   
-   
+
    // Error check
    ErrCheck("display");
 
@@ -632,143 +541,58 @@ void display()
    glutSwapBuffers();
 }
 
-
-/*
- *  Set projection
- */
-static void Project()
-{
-   //  Tell OpenGL we want to manipulate the projection matrix
-   glMatrixMode(GL_PROJECTION);
-   //  Undo previous transformations
-   glLoadIdentity();
-   //  Orthogonal projection
-   if ( m == 0 )
-   {
-      glOrtho(-asp*dim,+asp*dim, -dim,+dim, -dim+off,2*dim+off);  // shifted back to see more of the scene
-   }
-   //  Perspective projection
-   else if( m == 1)
-   {
-      gluPerspective(fov,asp, dim/4, 4*dim);
-   }
-   // First person
-   else
-   {
-      gluPerspective(fov,asp, 0.001, 4*dim);
-   }
-   //  Switch to manipulating the model matrix
-   glMatrixMode(GL_MODELVIEW);
-   //  Undo previous transformations
-   glLoadIdentity();
-}
-
-
 /*
  * This function is called by GLUT when the window is resized
  */
 void reshape(int width, int height)
-{   
+{
    // Avoid divide by zero
-   asp = (height>0) ? (double)width/height : 1;
+   asp = (height > 0) ? (double)width / height : 1;
 
    glViewport(0, 0, width, height);
 
    // Apply projection based on the current mode
-   Project();
+   if (m == 0)
+      Project(0, asp, dim);
+   else
+      Project(fov, asp, dim);
 }
 
 void key(unsigned char ch, int x, int y)
 {
-   // Keys to move the camera around (FPS-style controls)   
-   if (ch == 'w' || ch == 'W')        // Move forward (into the scene)
+   if (ch == 27) // Escape key
    {
-      if( m == 0 )
-         off += 0.1;
-      else
-      {
-         Ex += 0.1*dx;
-         Ez += 0.1*dz;
-      }
+      exit(0);
    }
-   else if (ch == 's' || ch == 'S')   // Move backward (out of the scene)
+   else if (ch == 'w' || ch == 'W')
    {
-      if( m == 0 )
-         off -= 0.1;
-      else
-      {
-         Ex -= 0.1*dx;
-         Ez -= 0.1*dz;
-      }
+      Ez += 0.1;
    }
-   else if (ch == 'a' || ch == 'A')   // Strafe left
+   else if (ch == 's' || ch == 'S')
    {
-      if( m == 2 )
-      {
-         Ex += 0.1*Cos(90.0-th);
-         Ez -= 0.1*Sin(90.0-th);
-      }
+      Ez -= 0.1;
    }
-   else if (ch == 'd' || ch == 'D')   // Strafe right
-   {
-      if( m == 2 )
-      {
-         Ex -= 0.1*Cos(90.0-th);
-         Ez += 0.1*Sin(90.0-th);
-      }
-   }
-   else if (ch == 'r' || ch == 'R')   // Reset to original configuration
-   {
-      m = 0;
-      Ex = 0;
-      Ey = 1;
-      Ez = 5;
-      th = 45;
-      ph = 20;
-      off = -3.6;
-   }
-   else if( ch == 'm' || ch == 'M' )
+   else if (ch == 'm' || ch == 'M')
    {
       m = (m + 1) % 3;
-
-      if( m < 2 )
-      {
-         ph = 20.0; // Reset pitch to 20
-
-         // Determine the theta angle based on current Ex, Ez position
-         if( m == 0 )
-         {
-            th = atan2(Ez, Ex) * 180.0 / 3.1415926535 - 90.0;
-         }
-      }
-      else
-      {
-         // When switching to first person, look at the origin         
-         // Calculate the angles needed to look in this direction
-         double distance = sqrt(Ex*Ex + Ey*Ey + Ez*Ez);
-         if (distance > 0.001) 
-         {
-            // Calculate theta (horizontal angle) - atan2 gives us the angle in the XZ plane
-            th = atan2(-Ez, -Ex) * 180.0 / 3.1415926535;
-         } 
-         else 
-         {
-            // look forward if at origin
-            th = 0.0;
-         }
-      }
    }
-   else if (ch == 27) // Escape key
-      exit(0);
-      
-   // Keep the first person view to only inside the world box
-   if( m == 2 )
+   else if (ch == 'l' || ch == 'L')
    {
-      Ex = (Ex < -dim) ? -dim+0.001 : (Ex > dim) ? dim-0.001 : Ex;
-      Ez = (Ez < -dim) ? -dim+0.001 : (Ez > dim) ? dim-0.001 : Ez;
+      light = 1 - light;
+   }
+   else if (ch == 'x' || ch == 'X')
+   {
+      axes = 1 - axes;
    }
 
-   Project();
+   if (m == 0)
+   {
+      Project(0, asp, dim);
+   }
+   else
+   {
+      Project(fov, asp, dim);
+   }
    //  Request display update
    glutPostRedisplay();
 }
@@ -781,99 +605,42 @@ void special(int key, int x, int y)
    // These seem backwards from the code perspective but make more sense when controlling the camera
    if (key == GLUT_KEY_RIGHT)
    {
-      th += 5;
-   }
-   else if (key == GLUT_KEY_LEFT)    // Look left (yaw left)
-   {
       th -= 5;
    }
-   else if (key == GLUT_KEY_UP)      // Look up (pitch up)
+   else if (key == GLUT_KEY_LEFT) // Look left (yaw left)
+   {
+      th += 5;
+   }
+   else if (key == GLUT_KEY_UP) // Look up (pitch up)
    {
       ph += 5;
    }
-   else if (key == GLUT_KEY_DOWN)    // Look down (pitch down)
+   else if (key == GLUT_KEY_DOWN) // Look down (pitch down)
    {
       ph -= 5;
    }
+   //  Smooth color model
+   else if (key == GLUT_KEY_F1)
+   {
+      smooth = 1 - smooth;
+   }
 
-   Project();
+   if (m == 0)
+      Project(0, asp, dim);
+   else
+      Project(fov, asp, dim);
 
    //  Request display update
    glutPostRedisplay();
 }
 
-/*
- *  Mouse motion callback
- */
-void motion(int x, int y)
-{
-   if (mouseCaptured)
-   {
-      // Calculate mouse movement
-      int deltaX = x - mouseX;
-      int deltaY = y - mouseY;
-      
-      // Update angles based on mouse movement
-      th += deltaX * 0.1;  // Horizontal movement controls azimuth (yaw)
-      if( m < 2 )
-         ph += deltaY * 0.1;  // Vertical movement controls elevation (pitch)
-      else
-      ph -= deltaY * 0.1;  // Vertical movement controls elevation (pitch), invert for first person
-      
-      // Keep phi within reasonable bounds
-      if (ph > 89) ph = 89;
-      if (ph < -89) ph = -89;
-      
-      // Wrap theta around 360 degrees
-      if (th > 360) th -= 360;
-      if (th < 0) th += 360;
-      
-      // Store current mouse position
-      mouseX = x;
-      mouseY = y;
-      
-      Project();
-      glutPostRedisplay();
-   }
-}
-
-/*
- *  Mouse button callback
- */
-void mouse(int button, int state, int x, int y)
-{
-   if (button == GLUT_LEFT_BUTTON)
-   {
-      if (state == GLUT_DOWN)
-      {
-         // Capture mouse for camera control
-         mouseCaptured = 1;
-         mouseX = x;
-         mouseY = y;
-         glutSetCursor(GLUT_CURSOR_NONE);  // Hide cursor
-      }
-      else
-      {
-         // Release mouse capture
-         mouseCaptured = 0;
-         glutSetCursor(GLUT_CURSOR_INHERIT);  // Show cursor
-      }
-   }
-}
-
-/*
- *  Passive mouse motion (when no button is pressed)
- */
-void passiveMotion(int x, int y)
-{
-   // Store mouse position even when not captured
-   mouseX = x;
-   mouseY = y;
-}
-
 // Function for basic animations
 void idle()
 {
+   // Rotate light around the origin
+   zh = fmod(zh + 1.0, 360.0);
+
+   glutPostRedisplay();
 }
 
 // Main
@@ -896,9 +663,6 @@ int main(int argc, char *argv[])
    glutKeyboardFunc(key);
    glutSpecialFunc(special);
    glutIdleFunc(idle);
-   glutMouseFunc(mouse);           // Mouse button callback
-   glutMotionFunc(motion);         // Mouse motion callback (with button pressed)
-   glutPassiveMotionFunc(passiveMotion); // Mouse motion callback (without button pressed)
    //  Enable Z-buffer depth test
    glEnable(GL_DEPTH_TEST);
    //  Pass control to GLUT for events

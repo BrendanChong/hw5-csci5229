@@ -1,5 +1,5 @@
 # Example 12
-EXE=ex12
+EXE=hw5
 
 # Main target
 all: $(EXE)
@@ -24,7 +24,7 @@ CLEAN=rm -f $(EXE) *.o *.a
 endif
 
 # Dependencies
-ex12.o: ex12.c CSCIx229.h
+hw5.o: hw5.c CSCIx229.h
 fatal.o: fatal.c CSCIx229.h
 errcheck.o: errcheck.c CSCIx229.h
 print.o: print.c CSCIx229.h
@@ -38,13 +38,13 @@ CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o
 
 # Compile rules
 .c.o:
-	gcc -c $(CFLG)  $<
+	gcc-13 -c $(CFLG)  $<
 .cpp.o:
-	g++ -c $(CFLG)  $<
+	g++-13 -c $(CFLG)  $<
 
 #  Link
-ex12:ex12.o   CSCIx229.a
-	gcc $(CFLG) -o $@ $^  $(LIBS)
+hw5:hw5.o   CSCIx229.a
+	gcc-13 $(CFLG) -o $@ $^  $(LIBS)
 
 #  Clean
 clean:
