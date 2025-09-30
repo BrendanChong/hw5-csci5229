@@ -89,8 +89,8 @@ double dim = 5.0;        // Size of the world
 double ph = 20;          // Elevation of view angle
 double th = 0;           // Azimuth of view angle
 double Ex = 0.0;         // First person camera x position
-double Ey = 0.0;         // first person camera y position
-double Ez = 0.0;         // first person camera z position
+double Ey = 1.0;         // first person camera y position
+double Ez = -1.0;        // first person camera z position
 
 // Flags
 int axes = 1;  // Display axes
@@ -445,7 +445,9 @@ void display()
       break;
    case 1:
       // Perspective
-      // gluLookAt(Ex, Ey, Ez, Ex + Cos(th) * Cos(ph), Ey + Sin(th) * Cos(ph), Ez + Sin(ph), 0.0, 0.0, 1.0);
+      gluLookAt(Ex, Ey, Ez, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+      glRotated(ph, 1.0, 0.0, 0.0);
+      glRotated(th, 0.0, 1.0, 0.0);
       break;
    case 2:
       // Fixed perspective
@@ -639,6 +641,9 @@ void idle()
 {
    // Rotate light around the origin
    zh = fmod(zh + 1.0, 360.0);
+
+   // Oscillate the light height
+   ylight = Sin(zh);
 
    glutPostRedisplay();
 }
