@@ -1,21 +1,20 @@
-Bicycle viewer
+Bicycle viewer with lighting
 
 author: Brendan Chong
-TOTAL TIME: 12 hours?
+TOTAL TIME: 6 hours
 
 Camera keybinds:
 Left/Right arrow keys - increment/decrement the azimuth angle by 5 degrees
 Up/Down arrow keys - increment/decrement the elevation angle by 5 degrees
-W - Move the camera backward 0.2 units, which has the effect of making the bikes get farther away
-S - Move the camera forward 0.2 units, which has the effect of making the bikes get closer
-A - Move left 0.2 units, which has some weird perspective issues that I don't fully understand yet?
-D - Move right 0.2 units, which does the same weird perspective thing.
-r/R - Reset the camera to its default position
-
-Other notes:
-- The bikes can be repositioned, reoriented, and rescaled, but there's no keybind for this as of now. I just threw in a couple different positions to demonstrate this. 
-- The position of the bike seems to be backward from what is specified. That is, if you create a bike at (x,y) = (1.0, 1.0), the bike will be created down and to the left of (0,0). I thought I fixed this by doing the reverse transform of what is specified, but this did not seem to fix the issue. Perhaps I need to remove the negative sign from this transformation after all
-- The coloring is done in each function, so the each part of the bike will always have the same color scheme. However, this is only the case since the parts are being used in the same assembly each time. For example, if you made a different torus with different transformations, the color would be different. The only way I thought of to fix this and color based on true global coordinate would require knowing the entire transformation matrix and backing out the inverse to determine the global coordinates. Perhaps there is a way to do this, but since the color wasn't part of the main assignment I didn't bother.
+W - Movest the y position of the light source up 0.1 units (only when light movement is toggled on)
+S - Move the y position of the light source down 0.1 units (only when light movement is toggled on)
+A - Moves the light source azimuth left 5 degrees (only when light movement is toggled on)
+D - Moves the light source azimuth right 5 degrees (only when light movement is toggled on)
+L - Toggle lighting on and off
+n - Toggle light movement on and off
+X - Toggle axes on and off
+M - Cycle through different perspective modes (orthogonal, perspective)
 
 USE OF AI:
-I used AI to help with the coloring method. Once it gave me the idea to do the global mapping, I implemented it everywhere else in the code. Otherwise, I use Copilot and regularly use it to complete lines after reviewing the proposed changes. The composition of the bike parts was done entirely without the use of AI, and would likely have been faster without it trying to backseat code for me.
+I use GitHub copilot, which occasionally autofills lines for me. I also sometimes ask ChatGPT questions if something isn't working, but these are conceptual questions only and I do not copy in code. 
+Otherwise, the rest of the code was written on my own.
