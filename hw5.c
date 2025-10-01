@@ -93,8 +93,9 @@ double Ey = 1.0;         // first person camera y position
 double Ez = -1.0;        // first person camera z position
 
 // Flags
-int axes = 1;  // Display axes
-int light = 1; // Lighting
+int axes = 1;  // Display axes or not
+int light = 1; // Lighting on or off
+int moveLight = 1; // Move light in idle or not
 
 // Light values
 int one = 1;       // Unit value
@@ -103,11 +104,9 @@ int inc = 10;      // Ball increment
 int smooth = 1;    // Smooth/Flat shading
 int local = 0;     // Local Viewer Model
 int emission = 0;  // Emission intensity (%)
-int ambient = 10;  // Ambient intensity (%)
+int ambient = 20;  // Ambient intensity (%)
 int diffuse = 50;  // Diffuse intensity (%)
-int specular = 0;  // Specular intensity (%)
-int shininess = 0; // Shininess (power of two)
-float shiny = 1;   // Shininess (value)
+int specular = 50;  // Specular intensity (%)
 int zh = 90;       // Light azimuth
 float ylight = 0;  // Elevation of light
 
@@ -392,6 +391,20 @@ void drawBicycle(Point origin, Point direction, Point scale)
 
    Point handlebarLeft = {headTubeTop.x - handleBarLength / 2.0, headTubeTop.y, headTubeTop.z};
    Point handlebarRight = {headTubeTop.x + handleBarLength / 2.0, headTubeTop.y, headTubeTop.z};
+   Point gripLeft = {handlebarLeft.x + 0.4*(handleBarLength / 2.0), handlebarLeft.y, handlebarLeft.z};
+   Point gripRight = {handlebarRight.x - 0.4*(handleBarLength / 2.0), handlebarRight.y, handlebarRight.z};
+   Point handleBarEndLeft = handlebarLeft;
+   handleBarEndLeft.x -= 0.1;
+   Point handleBarEndRight = handlebarRight;
+   handleBarEndRight.x += 0.1;
+
+   //  Colors for materials and light properties
+   float white[] = {1.0, 1.0, 1.0, 1.0};
+   float red[] = {1.0, 0.0, 0.0, 1.0};
+   float lightGrey[] = {0.7882352941176471, 0.7882352941176471, 0.7882352941176471, 1.0};
+   float darkGrey[] = {0.392156862745098, 0.392156862745098, 0.392156862745098, 1.0};
+   float silver[] = {0.8196078431372549, 0.8196078431372549, 0.8196078431372549, 1.0};
+   float black[] = {0.0, 0.0, 0.0, 1.0};
 
    // Apply rotation
    glPushMatrix();
@@ -402,13 +415,25 @@ void drawBicycle(Point origin, Point direction, Point scale)
    glScaled(scale.x, scale.y, scale.z);   // Scale to desired size
 
    // Grey color
-   glColor3f(201 / 255.0, 201 / 255.0, 201 / 255.0);
+   glColor4f(lightGrey[0], lightGrey[1], lightGrey[2], lightGrey[3]);
+   glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 64.0);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, lightGrey);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, lightGrey);
    drawCylinder(seatPost, seatTubeTop, r);         // Actual seat post
+
+   // Chrome silver
+   glColor4f(silver[0], silver[1], silver[2], silver[3]);
+   glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 128.0);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, white);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, black);
    drawCylinder(rearAxleLeft, rearAxleRight, r);   // Rear axle
    drawCylinder(frontAxleLeft, frontAxleRight, r); // Front axle
 
-   // Red color (for speed)
-   glColor3f(1.0, 0.0, 0.0);
+   // Chrome red (for speed)
+   glColor4f(red[0], red[1], red[2], red[3]);
+   glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 128.0);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, white);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, red);
    drawCylinder(headTubeBottom, headTubeTop, r);    // Head tube
    drawCylinder(seatPost, midHeadTube, r);          // Top tube
    drawCylinder(seatTubeBottom, headTubeBottom, r); // Down tube? No name on the diagram
@@ -421,19 +446,34 @@ void drawBicycle(Point origin, Point direction, Point scale)
    drawCylinder(headTubeBottom, frontAxleRight, r); // Right fork
    drawCylinder(headTubeBottom, frontAxleLeft, r);  // Left fork
 
-   // Darker grey
-   glColor3f(100 / 255.0, 100 / 255.0, 100 / 255.0);
+   // Darker grey - not as shiny
+   glColor4f(darkGrey[0], darkGrey[1], darkGrey[2], darkGrey[3]);
+   glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 1.0);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, darkGrey);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, darkGrey);
    drawCylinder(handlebarLeft, handlebarRight, r); // Handlebars
 
-   // Draw wheels
+
+   // Draw seat
+   EllipseStruct seat = {seatTubeTop, midHeadTube, 0.1, 0.05};
+   glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 4.0);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, lightGrey);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, lightGrey);
+   drawEllipse(seat);
+
+   // Draw wheels - black rubber
+   glColor4f(black[0], black[1], black[2], black[3]);
+   glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 0.0);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, darkGrey);
+   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, black);
    Torus frontWheel = {(Point){frontAxle.x, frontAxle.y, frontAxle.z}, (Point){1.0, 0.0, 0.0}, wheelRadius, 0.0254};
    drawTorus(frontWheel);
    Torus rearWheel = {(Point){rearAxle.x, rearAxle.y, rearAxle.z}, (Point){1.0, 0.0, 0.0}, wheelRadius, 0.0254};
    drawTorus(rearWheel);
 
-   // Draw seat
-   EllipseStruct seat = {seatTubeTop, midHeadTube, 0.1, 0.05};
-   drawEllipse(seat);
+   // Draw handlebar grips - black rubber
+   drawCylinder(gripLeft, handleBarEndLeft, 1.1*r);
+   drawCylinder(gripRight, handleBarEndRight, 1.1*r);
 
    glPopMatrix();
 }
@@ -441,7 +481,7 @@ void drawBicycle(Point origin, Point direction, Point scale)
 void display()
 {
    // Set background color to light blue
-   glClearColor(26.0 / 255.0, 163.0 / 255.0, 198.0 / 255.0, 1.0);
+   glClearColor(32.0 / 255.0, 72.0 / 255.0, 87.0 / 255.0, 1.0);
 
    // Clear the image
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -540,7 +580,7 @@ void display()
       glWindowPos2i(5, 45);
       Print("Model=%s LocalViewer=%s Distance=%d Elevation=%.1f", smooth ? "Smooth" : "Flat", local ? "On" : "Off", distance, ylight);
       glWindowPos2i(5, 25);
-      Print("Ambient=%d  Diffuse=%d Specular=%d Emission=%d Shininess=%.0f", ambient, diffuse, specular, emission, shiny);
+      Print("Ambient=%d  Diffuse=%d Specular=%d Emission=%d", ambient, diffuse, specular, emission);
    }
 
    // Error check
@@ -574,18 +614,6 @@ void key(unsigned char ch, int x, int y)
    {
       exit(0);
    }
-   else if (ch == 'w' || ch == 'W')
-   {
-      Ez += 0.1;
-   }
-   else if (ch == 's' || ch == 'S')
-   {
-      Ez -= 0.1;
-   }
-   else if (ch == 'm' || ch == 'M')
-   {
-      m = 1 - m;
-   }
    else if (ch == 'l' || ch == 'L')
    {
       light = 1 - light;
@@ -593,6 +621,30 @@ void key(unsigned char ch, int x, int y)
    else if (ch == 'x' || ch == 'X')
    {
       axes = 1 - axes;
+   }
+   else if( ch == 'n' || ch == 'N')
+   {
+      moveLight = 1 - moveLight;
+   }
+   else if( ch == 'm' || ch == 'M')
+   {
+      m = 1 - m;
+   }
+   else if( !moveLight && (ch == 'W' || ch == 'w'))
+   {
+      ylight += 0.1;
+   }
+   else if( !moveLight && (ch == 'S' || ch == 's'))
+   {
+      ylight -= 0.1;
+   }
+   else if( !moveLight && (ch == 'a' || ch == 'A'))
+   {
+      zh = fmod(zh + 5, 360.0);
+   }
+   else if( !moveLight && (ch == 'D' || ch == 'd'))
+   {
+      zh = fmod(zh - 5, 360.0);
    }
 
    if (m == 0)
@@ -647,13 +699,16 @@ void special(int key, int x, int y)
 // Function for basic animations
 void idle()
 {
+   if( moveLight )
+   {   
    // Rotate light around the origin
-   zh = fmod(zh + 1.0, 360.0);
+   zh = fmod(zh + 1, 360.0);
 
    // Oscillate the light height
-   ylight = 2.0 * Sin(4 * 360.0 * zh);
+   ylight = 2.0 * Sin((double)2*zh);
 
    glutPostRedisplay();
+   }
 }
 
 // Main
